@@ -41,12 +41,20 @@ async function seedDatabase() {
 }
 
 async function clearDatabase() {
-  const entities = dataSource.entityMetadatas;
-  for (const entity of entities) {
-    const repository = dataSource.getRepository(entity.name);
-    await repository.query(`DELETE FROM ${entity.tableName} CASCADE;`);
+  // Clear tables in reverse order of dependency
+  const tables = [
+    'order_items',
+    'orders',
+    'products',
+    'categories',
+    'customers',
+    'admins'
+  ];
+
+  for (const table of tables) {
+    await dataSource.query(`DELETE FROM ${table} CASCADE;`);
+    console.log(`Cleared table: ${table}`);
   }
-  console.log('Database cleared!');
 }
 
 async function seedAdmins() {
