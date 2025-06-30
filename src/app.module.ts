@@ -12,7 +12,6 @@ import { Product } from './modules/products/entities/product.entity';
 import { Category } from './modules/categories/entities/category.entity';
 import { Order } from './modules/orders/entities/order.entity';
 import { OrderItem } from './modules/orders/entities/order-item.entity';
-import { SeedModule } from './seed/seed.module';
 
 @Module({
   imports: [
@@ -35,7 +34,6 @@ import { SeedModule } from './seed/seed.module';
     ProductsModule,
     CategoriesModule,
     OrdersModule,
-    SeedModule,
   ],
 })
 export class AppModule {}
