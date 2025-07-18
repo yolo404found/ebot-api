@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Customer } from './entities/customer.entity';
@@ -12,16 +12,26 @@ export class CustomersService {
   ) {}
 
   async create(createCustomerDto: CreateCustomerDto): Promise<Customer> {
-    const customer = this.customerRepository.create(createCustomerDto);
-    return this.customerRepository.save(customer);
+    try {
+      const customer = this.customerRepository.create(createCustomerDto);
+      return await this.customerRepository.save(customer);
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException('Phone number already exists');
+      }
+      throw error;
+    }
   }
 
   async findAll(): Promise<Customer[]> {
-    return this.customerRepository.find();
+    return this.customerRepository.find({ relations: ['orders'] });
   }
 
   async findOne(id: number): Promise<Customer> {
-    const customer = await this.customerRepository.findOne({ where: { id } });
+    const customer = await this.customerRepository.findOne({ 
+      where: { id },
+      relations: ['orders']
+    });
     if (!customer) {
       throw new NotFoundException(`Customer with ID ${id} not found`);
     }
@@ -29,23 +39,34 @@ export class CustomersService {
   }
 
   async findByPhone(phone: string): Promise<Customer> {
-    const customerByPhone = await this.customerRepository.findOne({ where: { phone } });
-    if(!customerByPhone) {
+    const customer = await this.customerRepository.findOne({ 
+      where: { phone },
+      relations: ['orders']
+    });
+    if (!customer) {
       throw new NotFoundException(`Customer with phone ${phone} not found`);
     }
-    return customerByPhone;
+    return customer;
   }
 
   async update(id: number, updateCustomerDto: UpdateCustomerDto): Promise<Customer> {
-   await this.customerRepository.update(id, updateCustomerDto);
-    const updatedCustomer = await this.customerRepository.findOne({ where: { id } });
-    if (!updatedCustomer) {
-      throw new NotFoundException(`Customer with ID ${id} not found`);
-    } 
-    return updatedCustomer;
+    const existing = await this.findOne(id);
+    const updated = this.customerRepository.merge(existing, updateCustomerDto);
+    
+    try {
+      return await this.customerRepository.save(updated);
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException('Phone number already exists');
+      }
+      throw error;
+    }
   }
 
   async remove(id: number): Promise<void> {
-    await this.customerRepository.delete(id);
+    const result = await this.customerRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Customer with ID ${id} not found`);
+    }
   }
 }

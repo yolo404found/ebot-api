@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Category } from './entities/category.entity';
@@ -12,8 +12,15 @@ export class CategoriesService {
   ) {}
 
   async create(createCategoryDto: CreateCategoryDto): Promise<Category> {
-    const category = this.categoryRepository.create(createCategoryDto);
-    return this.categoryRepository.save(category);
+    try {
+      const category = this.categoryRepository.create(createCategoryDto);
+      return await this.categoryRepository.save(category);
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException('Category name already exists');
+      }
+      throw error;
+    }
   }
 
   async findAll(): Promise<Category[]> {
@@ -21,29 +28,34 @@ export class CategoriesService {
   }
 
   async findOne(id: number): Promise<Category> {
-    const category = await this.categoryRepository.findOne({ where: { id } });
-        if (!category) {
-          throw new NotFoundException(`Category with ID ${id} not found`);
-        }
-        return category;
+    const category = await this.categoryRepository.findOne({ 
+      where: { id },
+      relations: ['products'] 
+    });
+    if (!category) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
+    return category;
   }
 
   async update(id: number, updateCategoryDto: UpdateCategoryDto): Promise<Category> {
+    const existing = await this.findOne(id);
+    const updated = this.categoryRepository.merge(existing, updateCategoryDto);
     
-    // return this.categoryRepository.findOne({ where: { id } });
-
-    await this.categoryRepository.update(id, updateCategoryDto);
-  
-  const updatedCategory = await this.categoryRepository.findOne({ where: { id } });
-  
-  if (!updatedCategory) {
-    throw new NotFoundException(`Category with ID ${id} not found`);
-  }
-  
-  return updatedCategory;
+    try {
+      return await this.categoryRepository.save(updated);
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException('Category name already exists');
+      }
+      throw error;
+    }
   }
 
   async remove(id: number): Promise<void> {
-    await this.categoryRepository.delete(id);
+    const result = await this.categoryRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Category with ID ${id} not found`);
+    }
   }
 }

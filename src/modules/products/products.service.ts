@@ -23,7 +23,10 @@ export class ProductsService {
   }
 
   async findAll(): Promise<Product[]> {
-    return this.productRepository.find({ relations: ['category'] });
+    return this.productRepository.find({ 
+      relations: ['category'],
+      order: { created_at: 'DESC' }
+    });
   }
 
   async findOne(id: number): Promise<Product> {
@@ -31,34 +34,36 @@ export class ProductsService {
       where: { id },
       relations: ['category'],
     });
-    if(!product){
-      throw new NotFoundException(`Product with ID ${id} not found`);
-    }
-    return product;
-  }
-
-  async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
-    const product = await this.productRepository.findOne({ where: { id } });
     
     if (!product) {
       throw new NotFoundException(`Product with ID ${id} not found`);
     }
-  
+    
+    return product;
+  }
+
+  async update(id: number, updateProductDto: UpdateProductDto): Promise<Product> {
+    const product = await this.findOne(id);
+    
     if (updateProductDto.category_id) {
       const category = await this.categoriesService.findOne(updateProductDto.category_id);
-      if (!category) {
-        throw new NotFoundException(`Category with ID ${updateProductDto.category_id} not found`);
-      }
       product.category = category;
     }
-  
-    // Update other fields
-    Object.assign(product, updateProductDto);
+
+    // Update other fields if provided
+    if (updateProductDto.name) product.name = updateProductDto.name;
+    if (updateProductDto.description) product.description = updateProductDto.description;
+    if (updateProductDto.price) product.price = updateProductDto.price;
+    if (updateProductDto.stock) product.stock = updateProductDto.stock;
+    if (updateProductDto.images) product.images = updateProductDto.images;
     
     return this.productRepository.save(product);
   }
 
   async remove(id: number): Promise<void> {
-    await this.productRepository.delete(id);
+    const result = await this.productRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Product with ID ${id} not found`);
+    }
   }
 }

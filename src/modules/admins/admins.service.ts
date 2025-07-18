@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Admin } from './entities/admin.entity';
@@ -12,8 +12,15 @@ export class AdminsService {
   ) {}
 
   async create(createAdminDto: CreateAdminDto): Promise<Admin> {
-    const admin = this.adminRepository.create(createAdminDto);
-    return this.adminRepository.save(admin);
+    try {
+      const admin = this.adminRepository.create(createAdminDto);
+      return await this.adminRepository.save(admin);
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException('Duplicate telegram_id or phone number');
+      }
+      throw error;
+    }
   }
 
   async findAll(): Promise<Admin[]> {
@@ -29,18 +36,23 @@ export class AdminsService {
   }
 
   async update(id: number, updateAdminDto: UpdateAdminDto): Promise<Admin> {
-    await this.adminRepository.update(id, updateAdminDto);
+    const existing = await this.findOne(id);
+    const updated = this.adminRepository.merge(existing, updateAdminDto);
     
-    const updatedAdmin = await this.adminRepository.findOne({ where: { id } });
-    
-    if (!updatedAdmin) {
-      throw new NotFoundException(`Admin with ID ${id} not found`);
+    try {
+      return await this.adminRepository.save(updated);
+    } catch (error) {
+      if (error.code === '23505') {
+        throw new ConflictException('Duplicate phone number');
+      }
+      throw error;
     }
-    
-    return updatedAdmin;
   }
 
   async remove(id: number): Promise<void> {
-    await this.adminRepository.delete(id);
+    const result = await this.adminRepository.delete(id);
+    if (result.affected === 0) {
+      throw new NotFoundException(`Admin with ID ${id} not found`);
+    }
   }
 }

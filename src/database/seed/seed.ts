@@ -41,7 +41,6 @@ async function seedDatabase() {
 }
 
 async function clearDatabase() {
-  // Clear tables in reverse order of dependency
   const tables = [
     'order_items',
     'orders',
