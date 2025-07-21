@@ -1,12 +1,11 @@
-// src/seed/seed.ts
 import { DataSource } from 'typeorm';
 import * as bcrypt from 'bcrypt';
-import { Admin } from '../../modules/admins/entities/admin.entity';
-import { Customer } from '../../modules/customers/entities/customer.entity';
-import { Category } from '../../modules/categories/entities/category.entity';
-import { Product } from '../../modules/products/entities/product.entity';
-import { Order } from '../../modules/orders/entities/order.entity';
-import { OrderItem } from '../../modules/orders/entities/order-item.entity';
+import { Customer } from '@/modules/customers/entities/customer.entity';
+import { Category } from '@/modules/categories/entities/category.entity';
+import { Product } from '@/modules/products/entities/product.entity';
+import { Order } from '@/modules/orders/entities/order.entity';
+import { OrderItem } from '@/modules/orders/entities/order-item.entity';
+import { Admin } from '@/modules/admins/entities/admin.entity';
 
 // Database configuration
 const dataSource = new DataSource({
@@ -15,13 +14,35 @@ const dataSource = new DataSource({
   port: parseInt(process.env.DB_PORT || '5432'),
   username: process.env.DB_USER || 'postgres',
   password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_NAME || 'ebot',
+  database: process.env.DB_NAME || 'ebot_api',
   entities: [Admin, Customer, Category, Product, Order, OrderItem],
   synchronize: true, // Only for development
 });
 
+async function ensureDatabaseExists() {
+  const adminDataSource = new DataSource({
+    type: 'postgres',
+    host: process.env.DB_HOST || 'localhost',
+    port: parseInt(process.env.DB_PORT || '5432'),
+    username: process.env.DB_USER || 'postgres',
+    password: process.env.DB_PASSWORD || 'postgres',
+    database: 'postgres' // Connect to default database
+  });
+
+  try {
+    await adminDataSource.initialize();
+    await adminDataSource.query(`CREATE DATABASE "${process.env.DB_NAME || 'ebot_api'}"`);
+    console.log('Database created or already exists');
+  } catch (err) {
+    console.log('Database likely already exists');
+  } finally {
+    await adminDataSource.destroy();
+  }
+}
+
 async function seedDatabase() {
   try {
+    await ensureDatabaseExists();
     await dataSource.initialize();
     console.log('Data Source initialized');
 
@@ -41,6 +62,7 @@ async function seedDatabase() {
 }
 
 async function clearDatabase() {
+  // Clear tables in reverse order of dependency
   const tables = [
     'order_items',
     'orders',
