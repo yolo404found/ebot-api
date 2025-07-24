@@ -9,12 +9,16 @@ export class OrderItem {
   @ApiProperty({ example: 1, description: 'Unique identifier' })
   id: number;
 
-  @ManyToOne(() => Order, order => order.items)
+  @ManyToOne(() => Order, order => order.items, {
+    onDelete: 'CASCADE'
+  })
   @JoinColumn({ name: 'order_id' })
   @ApiProperty({ type: () => Order, description: 'Related order' })
   order: Order;
 
-  @ManyToOne(() => Product)
+  @ManyToOne(() => Product, {
+    eager: true
+  })
   @JoinColumn({ name: 'product_id' })
   @ApiProperty({ type: () => Product, description: 'Ordered product' })
   product: Product;

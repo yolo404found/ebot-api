@@ -37,7 +37,11 @@ export class Order {
   })
   notes: string;
 
-  @OneToMany(() => OrderItem, (item) => item.order)
+  @OneToMany(() => OrderItem, (item) => item.order, {
+    cascade: true,
+    eager: true,
+    onDelete: 'CASCADE'
+  })
   @ApiProperty({ 
     type: () => OrderItem, 
     isArray: true,

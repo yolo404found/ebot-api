@@ -1,5 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsEnum } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsArray, IsEnum, IsNumber, IsOptional, IsPositive, IsString, ValidateNested } from 'class-validator';
+import { CreateOrderItemDto } from './create-order.dto';
 
 export class UpdateOrderDto {
   @ApiProperty({ 
@@ -20,4 +22,16 @@ export class UpdateOrderDto {
   @IsString()
   @IsOptional()
   notes?: string;
+
+  @ApiProperty({ 
+    type: () => [CreateOrderItemDto],
+    example: [{ product_id: 1, quantity: 2, price: 49.99 }],
+    description: 'Order items',
+    required: false
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => CreateOrderItemDto)
+  @IsOptional()
+  items?: CreateOrderItemDto[];
 }
